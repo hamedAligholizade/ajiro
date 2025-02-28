@@ -1,0 +1,42 @@
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Apply RTL direction to the body */
+body {
+  @apply font-sans;
+}
+
+/* RTL specific styles */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="ltr"] {
+  text-align: left;
+}
+
+/* Make sure inputs work properly in RTL */
+[dir="rtl"] input,
+[dir="rtl"] textarea {
+  text-align: right;
+}
+
+@layer components {
+  /* Custom button styles */
+  .btn-primary {
+    @apply px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors;
+  }
+  
+  /* Custom input styles */
+  .input-field {
+    @apply px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500;
+  }
+  
+  /* Card component */
+  .card {
+    @apply bg-white rounded-lg shadow-md p-6;
+  }
+} 

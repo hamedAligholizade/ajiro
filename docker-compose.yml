@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ajiro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ajiro_dev}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1374Ajiro!1995}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5440:5440"
+    command: -p 5440
+    networks:
+      - ajiro-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -p 5440"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ajiro-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8000
+      DB_HOST: postgres
+      DB_PORT: 5440
+      DB_NAME: ${DB_NAME:-ajiro_dev}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-1374Ajiro!1995}
+      JWT_SECRET: ${JWT_SECRET:-1374Ajiro!1995}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+    networks:
+      - ajiro-network
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ajiro-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - ajiro-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+networks:
+  ajiro-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local 
