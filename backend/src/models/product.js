@@ -34,6 +34,22 @@ module.exports = (sequelize, DataTypes) => {
         min: 0,
       }
     },
+    image: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    images: {
+      type: DataTypes.JSON,  // Store an array of image paths
+      allowNull: true,
+      defaultValue: [],
+      get() {
+        const value = this.getDataValue('images');
+        return value ? (typeof value === 'string' ? JSON.parse(value) : value) : [];
+      },
+      set(value) {
+        this.setDataValue('images', typeof value === 'string' ? value : JSON.stringify(value));
+      }
+    },
     shop_id: {
       type: DataTypes.UUID,
       allowNull: false,

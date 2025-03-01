@@ -12,6 +12,13 @@ const getTransactions = async (req, res) => {
   try {
     const { shop_id, page = 1, limit = 20, startDate, endDate } = req.query;
     
+    console.log('getTransactions debug:', {
+      shop_id,
+      user: req.user,
+      userShopId: req.user?.shop_id,
+      query: req.query
+    });
+    
     // Ensure shop_id is set (should be set by attachShopId middleware)
     if (!shop_id) {
       return res.status(400).json({

@@ -18,11 +18,31 @@ router.get('/', productController.getProducts);
 // Get a single product
 router.get('/:id', productController.getProductById);
 
-// Create a new product
-router.post('/', productController.createProduct);
+// Create a new product with single or multiple image uploads
+router.post('/', (req, res, next) => {
+  productController.uploadProductImages(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        status: 'error',
+        message: err.message
+      });
+    }
+    next();
+  });
+}, productController.createProduct);
 
-// Update a product
-router.put('/:id', productController.updateProduct);
+// Update a product with single or multiple image uploads
+router.put('/:id', (req, res, next) => {
+  productController.uploadProductImages(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        status: 'error',
+        message: err.message
+      });
+    }
+    next();
+  });
+}, productController.updateProduct);
 
 // Delete a product
 router.delete('/:id', productController.deleteProduct);

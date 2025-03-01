@@ -3,6 +3,56 @@
  */
 const { Product } = require('../models');
 const { Sequelize, Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+
+// Setup multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/products');
+    
+    // Create the directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `product-${uniqueSuffix}${ext}`);
+  }
+});
+
+// Filter for image files
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('فقط فایل های تصویری با فرمت JPEG، PNG یا GIF مجاز است'));
+  }
+};
+
+// Initialize multer upload
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max size
+  fileFilter: fileFilter
+});
+
+// Export upload middleware for routes
+const uploadProductImage = upload.single('image');
+
+// Export upload middleware for multiple images
+const uploadProductImages = upload.fields([
+  { name: 'image', maxCount: 1 },  // Main image
+  { name: 'additionalImages', maxCount: 5 }  // Additional images, max 5
+]);
 
 /**
  * Get all products for a shop
@@ -131,6 +181,25 @@ const createProduct = async (req, res) => {
       });
     }
     
+    // Handle main image upload
+    let image = null;
+    let images = [];
+    
+    if (req.files) {
+      // Handle main image (single file)
+      if (req.files.image && req.files.image.length > 0) {
+        image = `uploads/products/${req.files.image[0].filename}`;
+      }
+      
+      // Handle additional images (multiple files)
+      if (req.files.additionalImages && req.files.additionalImages.length > 0) {
+        images = req.files.additionalImages.map(file => `uploads/products/${file.filename}`);
+      }
+    } else if (req.file) {
+      // For backward compatibility with single image upload
+      image = `uploads/products/${req.file.filename}`;
+    }
+    
     // Create product
     const product = await Product.create({
       name,
@@ -138,6 +207,8 @@ const createProduct = async (req, res) => {
       price,
       stock_quantity: stock_quantity || 0,
       shop_id,
+      image,
+      images,
     });
     
     return res.status(201).json({
@@ -161,7 +232,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, stock_quantity, shop_id } = req.body;
+    const { name, description, price, stock_quantity, shop_id, removeImages } = req.body;
     
     // Ensure shop_id is set (should be set by attachShopId middleware)
     if (!shop_id) {
@@ -186,24 +257,87 @@ const updateProduct = async (req, res) => {
       });
     }
     
+    // Handle main image upload
+    let image = product.image;
+    let existingImages = product.images || [];
+    let imagesToRemove = [];
+    
+    // Parse removeImages if it's a string (from FormData)
+    if (removeImages && typeof removeImages === 'string') {
+      try {
+        imagesToRemove = JSON.parse(removeImages);
+      } catch (e) {
+        console.error('Error parsing removeImages:', e);
+        imagesToRemove = [];
+      }
+    } else if (Array.isArray(removeImages)) {
+      imagesToRemove = removeImages;
+    }
+    
+    if (req.files) {
+      // Handle main image (single file)
+      if (req.files.image && req.files.image.length > 0) {
+        // Delete previous main image if it exists
+        if (product.image) {
+          const oldImagePath = path.join(__dirname, '../../', product.image);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        }
+        image = `uploads/products/${req.files.image[0].filename}`;
+      }
+      
+      // Handle additional images (multiple files)
+      if (req.files.additionalImages && req.files.additionalImages.length > 0) {
+        const newImages = req.files.additionalImages.map(file => `uploads/products/${file.filename}`);
+        existingImages = [...existingImages, ...newImages];
+      }
+    } else if (req.file) {
+      // For backward compatibility with single image upload
+      // Delete previous image if it exists
+      if (product.image) {
+        const oldImagePath = path.join(__dirname, '../../', product.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      image = `uploads/products/${req.file.filename}`;
+    }
+    
+    // Remove images that were marked for removal
+    if (imagesToRemove.length > 0) {
+      // Delete files from disk
+      for (const imgPath of imagesToRemove) {
+        const fullPath = path.join(__dirname, '../../', imgPath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+      
+      // Remove from the list of images
+      existingImages = existingImages.filter(img => !imagesToRemove.includes(img));
+    }
+    
     // Update product
     await product.update({
       name: name || product.name,
-      description: description !== undefined ? description : product.description,
+      description: description || product.description,
       price: price || product.price,
       stock_quantity: stock_quantity !== undefined ? stock_quantity : product.stock_quantity,
+      image,
+      images: existingImages,
     });
     
     return res.status(200).json({
       status: 'success',
-      message: 'محصول با موفقیت به روز رسانی شد',
+      message: 'محصول با موفقیت بروزرسانی شد',
       product,
     });
   } catch (error) {
     console.error('Update product error:', error);
     return res.status(500).json({
       status: 'error',
-      message: 'خطا در به روز رسانی محصول'
+      message: 'خطا در بروزرسانی محصول'
     });
   }
 };
@@ -240,6 +374,14 @@ const deleteProduct = async (req, res) => {
       });
     }
     
+    // Delete product image if it exists
+    if (product.image) {
+      const imagePath = path.join(__dirname, '../../', product.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+    
     // Delete product
     await product.destroy();
     
@@ -261,5 +403,7 @@ module.exports = {
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  uploadProductImage,
+  uploadProductImages,
 }; 

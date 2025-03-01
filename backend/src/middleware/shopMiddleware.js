@@ -11,6 +11,15 @@ const ensureShopAccess = (req, res, next) => {
     // Get shop_id from params or query or body
     const requestedShopId = req.params.shop_id || req.query.shop_id || req.body.shop_id;
     
+    console.log('Debug ensureShopAccess:', {
+      requestedShopId,
+      userShopId: req.user?.shop_id,
+      user: req.user,
+      query: req.query,
+      params: req.params,
+      method: req.method
+    });
+    
     // If no specific shop is requested, proceed (user's shop_id will be used)
     if (!requestedShopId) {
       return next();
@@ -18,9 +27,11 @@ const ensureShopAccess = (req, res, next) => {
     
     // Convert to number for comparison
     const shopIdNum = parseInt(requestedShopId, 10);
+    const userShopIdNum = parseInt(req.user.shop_id, 10);
     
     // Check if user is trying to access a shop they don't belong to
-    if (shopIdNum !== req.user.shop_id) {
+    if (isNaN(shopIdNum) || isNaN(userShopIdNum) || shopIdNum !== userShopIdNum) {
+      console.log('Shop access denied:', { shopIdNum, userShopIdNum, match: shopIdNum === userShopIdNum });
       return res.status(403).json({
         status: 'error',
         message: 'شما مجوز دسترسی به این فروشگاه را ندارید'
@@ -43,6 +54,12 @@ const ensureShopAccess = (req, res, next) => {
  * Must be used after authenticateJWT middleware
  */
 const attachShopId = (req, res, next) => {
+  console.log('Debug attachShopId - before:', {
+    query: req.query,
+    userShopId: req.user?.shop_id,
+    method: req.method
+  });
+
   // For GET requests, attach to query
   if (req.method === 'GET') {
     req.query.shop_id = req.query.shop_id || req.user.shop_id;
@@ -52,6 +69,12 @@ const attachShopId = (req, res, next) => {
   if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.body.shop_id) {
     req.body.shop_id = req.user.shop_id;
   }
+  
+  console.log('Debug attachShopId - after:', {
+    query: req.query,
+    userShopId: req.user?.shop_id,
+    method: req.method
+  });
   
   next();
 };
