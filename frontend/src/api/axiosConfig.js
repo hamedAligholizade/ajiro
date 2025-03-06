@@ -1,20 +1,31 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-// Create an axios instance with direct backend connection
+// Create an axios instance with backend connection using environment variable
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
+  // Enable credentials for cross-origin requests if needed
+  withCredentials: true,
 });
 
 // Request interceptor for adding auth token
 apiClient.interceptors.request.use(
   (config) => {
+    // Add authentication token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Don't override Content-Type for FormData (it needs to include boundary)
+    if (config.data instanceof FormData) {
+      // Let axios set the correct content type with boundary
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)

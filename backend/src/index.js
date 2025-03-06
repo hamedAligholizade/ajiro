@@ -16,12 +16,21 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
   credentials: true
 }));
-app.use(helmet());
+
+// Configure helmet with less restrictive settings for images
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve static files from uploads directory with CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // Import routes
 const indexRoutes = require('./routes/index');

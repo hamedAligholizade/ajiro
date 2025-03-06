@@ -86,7 +86,20 @@
     "confirmDelete": "آیا از حذف این محصول اطمینان دارید؟",
     "addSuccess": "محصول با موفقیت اضافه شد",
     "editSuccess": "محصول با موفقیت ویرایش شد",
-    "deleteSuccess": "محصول با موفقیت حذف شد"
+    "deleteSuccess": "محصول با موفقیت حذف شد",
+    "noImage": "بدون تصویر",
+    "inStock": "موجود",
+    "selectProduct": "انتخاب محصول",
+    "noProductsYet": "هنوز محصولی ثبت نشده است",
+    "noSearchResults": "نتیجه‌ای برای جستجو یافت نشد",
+    "addNewProduct": "افزودن محصول جدید",
+    "mainImage": "تصویر اصلی",
+    "additionalImages": "تصاویر اضافی",
+    "uploadImage": "بارگذاری تصویر",
+    "addMoreImages": "افزودن تصاویر بیشتر",
+    "productImage": "تصویر محصول",
+    "imageSizeLimit": "فرمت‌های PNG، JPG، GIF تا حداکثر ۵ مگابایت",
+    "stockQuantity": "تعداد موجودی"
   },
   "transactions": {
     "title": "تراکنش‌ها",
@@ -107,7 +120,14 @@
     "startDate": "تاریخ شروع",
     "endDate": "تاریخ پایان",
     "total": "جمع کل",
-    "itemCount": "تعداد اقلام"
+    "itemCount": "تعداد اقلام",
+    "newSale": "فروش جدید",
+    "addProduct": "افزودن محصول",
+    "noItemsYet": "هنوز محصولی به سبد خرید اضافه نشده است",
+    "summary": "خلاصه تراکنش",
+    "customerPhone": "شماره تلفن مشتری",
+    "quantity": "تعداد",
+    "subtotal": "مبلغ جزء"
   },
   "footer": {
     "rights": "تمامی حقوق محفوظ است",
@@ -142,5 +162,13 @@
     "success": "ثبت نام با موفقیت انجام شد",
     "haveAccount": "قبلاً حساب کاربری دارید؟",
     "loginLink": "ورود"
+  },
+  "validation": {
+    "required": "این فیلد الزامی است",
+    "invalidEmail": "ایمیل نامعتبر است",
+    "invalidPrice": "قیمت نامعتبر است",
+    "invalidStock": "موجودی نامعتبر است",
+    "invalidImageType": "نوع فایل نامعتبر است. لطفاً تصویر PNG، JPG یا GIF بارگذاری کنید",
+    "imageTooLarge": "حجم تصویر نباید بیش از ۵ مگابایت باشد"
   }
 } 

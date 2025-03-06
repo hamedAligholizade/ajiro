@@ -7,6 +7,40 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
+// Get server base URL from environment or use default
+const getBaseUrl = () => {
+  return process.env.SERVER_URL || 'http://localhost:8000';
+};
+
+// Convert relative image paths to full URLs
+const getFullImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) return imagePath;
+  
+  const baseUrl = getBaseUrl();
+  return `${baseUrl}/${imagePath}`;
+};
+
+// Process product data to include full image URLs
+const processProductImages = (product) => {
+  if (!product) return product;
+  
+  // Convert to plain object if it's a Sequelize model
+  const productData = product.toJSON ? product.toJSON() : { ...product };
+  
+  // Process main image
+  if (productData.image) {
+    productData.image = getFullImageUrl(productData.image);
+  }
+  
+  // Process additional images
+  if (productData.images && Array.isArray(productData.images)) {
+    productData.images = productData.images.map(img => getFullImageUrl(img));
+  }
+  
+  return productData;
+};
+
 // Setup multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -96,12 +130,15 @@ const getProducts = async (req, res) => {
     // Calculate total pages
     const totalPages = Math.ceil(count / limit);
     
+    // Process products to add full URLs for images
+    const processedProducts = products.map(product => processProductImages(product));
+    
     return res.status(200).json({
       status: 'success',
       count,
       totalPages,
       currentPage: parseInt(page),
-      products,
+      products: processedProducts,
     });
   } catch (error) {
     console.error('Get products error:', error);
@@ -144,9 +181,12 @@ const getProductById = async (req, res) => {
       });
     }
     
+    // Process product to add full URLs for images
+    const processedProduct = processProductImages(product);
+    
     return res.status(200).json({
       status: 'success',
-      product,
+      product: processedProduct,
     });
   } catch (error) {
     console.error('Get product error:', error);
@@ -211,10 +251,13 @@ const createProduct = async (req, res) => {
       images,
     });
     
+    // Process product to add full URLs for images
+    const processedProduct = processProductImages(product);
+    
     return res.status(201).json({
       status: 'success',
       message: 'محصول با موفقیت ایجاد شد',
-      product,
+      product: processedProduct,
     });
   } catch (error) {
     console.error('Create product error:', error);
@@ -328,10 +371,13 @@ const updateProduct = async (req, res) => {
       images: existingImages,
     });
     
+    // Process updated product to add full URLs for images
+    const processedProduct = processProductImages(product);
+    
     return res.status(200).json({
       status: 'success',
       message: 'محصول با موفقیت بروزرسانی شد',
-      product,
+      product: processedProduct,
     });
   } catch (error) {
     console.error('Update product error:', error);

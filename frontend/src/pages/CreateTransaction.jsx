@@ -11,6 +11,7 @@ import {
   FiImage
 } from 'react-icons/fi';
 import { useProducts, useCreateTransaction } from '../api/queryHooks';
+import { getFullImageUrl } from '../config';
 
 const CreateTransaction = () => {
   const { t } = useTranslation();
@@ -53,7 +54,7 @@ const CreateTransaction = () => {
       updatedItems[existingIndex].quantity += 1;
       setItems(updatedItems);
     } else {
-      // Add new item
+      // Add new item with image data
       setItems([
         ...items,
         {
@@ -62,6 +63,8 @@ const CreateTransaction = () => {
           price: product.price,
           quantity: 1,
           stock_quantity: product.stock_quantity,
+          image: product.image || null,
+          images: product.images || null,
         }
       ]);
     }
@@ -146,6 +149,29 @@ const CreateTransaction = () => {
     }).format(price);
   };
   
+  // Get image URL - updated to use the backend-provided URLs directly
+  const getImageUrl = (imagePath) => {
+    // Return the path as-is since backend now provides full URLs
+    return imagePath || null;
+  };
+  
+  // Get product image URL directly
+  const getProductImage = (product) => {
+    if (!product) return null;
+    
+    // Simply return the image URL as-is, since it's already a full URL from the backend
+    if (product.image) {
+      return product.image;
+    }
+    
+    // Or the first additional image
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      return product.images[0];
+    }
+    
+    return null;
+  };
+  
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -209,24 +235,15 @@ const CreateTransaction = () => {
                           <div className="flex items-center">
                             {/* Product image */}
                             <div className="h-10 w-10 bg-gray-100 rounded-md flex-shrink-0 mr-3 overflow-hidden">
-                              {(item.image || (item.images && item.images.length > 0)) ? (
+                              {getProductImage(item) ? (
                                 <img 
-                                  src={
-                                    item.image 
-                                      ? (item.image.startsWith('http') || item.image.startsWith('/') 
-                                        ? item.image 
-                                        : `/uploads/products/${item.image}`)
-                                      : (item.images && item.images.length > 0)
-                                        ? (item.images[0].startsWith('http') || item.images[0].startsWith('/') 
-                                          ? item.images[0] 
-                                          : `/uploads/products/${item.images[0]}`)
-                                        : null
-                                  }
+                                  src={getProductImage(item)}
                                   alt={item.name}
                                   className="h-full w-full object-cover"
                                   onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = 'https://via.placeholder.com/100?text=No+Image';
+                                    // Use data URI instead of placeholder service
+                                    e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%20%7B%20fill%3A%23999%3Bfont-weight%3Anormal%3Bfont-family%3AArial%2C%20Helvetica%2C%20sans-serif%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23eee%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20id%3D%22holder_text%22%20x%3D%2220%22%20y%3D%2256.5%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E';
                                   }}
                                 />
                               ) : (
@@ -374,24 +391,15 @@ const CreateTransaction = () => {
                             <div className="flex items-center">
                               {/* Product image */}
                               <div className="h-12 w-12 bg-gray-100 rounded-md flex-shrink-0 mr-3 overflow-hidden">
-                                {(product.image || (product.images && product.images.length > 0)) ? (
+                                {getProductImage(product) ? (
                                   <img 
-                                    src={
-                                      product.image 
-                                        ? (product.image.startsWith('http') || product.image.startsWith('/') 
-                                          ? product.image 
-                                          : `/uploads/products/${product.image}`)
-                                        : (product.images && product.images.length > 0)
-                                          ? (product.images[0].startsWith('http') || product.images[0].startsWith('/') 
-                                            ? product.images[0] 
-                                            : `/uploads/products/${product.images[0]}`)
-                                          : null
-                                    }
+                                    src={getProductImage(product)}
                                     alt={product.name}
                                     className="h-full w-full object-cover"
                                     onError={(e) => {
                                       e.target.onerror = null;
-                                      e.target.src = 'https://via.placeholder.com/100?text=No+Image';
+                                      // Use data URI instead of placeholder service
+                                      e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%20%7B%20fill%3A%23999%3Bfont-weight%3Anormal%3Bfont-family%3AArial%2C%20Helvetica%2C%20sans-serif%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23eee%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20id%3D%22holder_text%22%20x%3D%2220%22%20y%3D%2256.5%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E';
                                     }}
                                   />
                                 ) : (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FiChevronLeft, FiChevronRight, FiMaximize2, FiX } from 'react-icons/fi';
+import { getFullImageUrl } from '../config';
 
 /**
  * Component for displaying an image gallery with navigation
@@ -13,12 +14,16 @@ const ImageGallery = ({ images = [], mainImage = '', altText = 'Product Image' }
   const [fullscreenMode, setFullscreenMode] = useState(false);
   
   // Combine main image and additional images into a single array
-  const allImages = [mainImage, ...images].filter(Boolean);
+  const allImages = [mainImage, ...images]
+    .filter(img => img && img !== 'null' && img !== 'undefined' && img.trim && img.trim() !== '');
+  
+  console.log('ImageGallery - processed images:', { mainImage, additionalImages: images, processedImages: allImages });
   
   // Handle image errors
   const handleImageError = (e) => {
     e.target.onerror = null;
-    e.target.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
+    // Use data URI instead of external placeholder service to avoid network errors
+    e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22400%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%20%7B%20fill%3A%23999%3Bfont-weight%3Anormal%3Bfont-family%3AArial%2C%20Helvetica%2C%20sans-serif%3Bfont-size%3A20pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Crect%20width%3D%22400%22%20height%3D%22400%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20id%3D%22holder_text%22%20x%3D%22100%22%20y%3D%22220%22%3EImage%20Not%20Found%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E';
   };
   
   // Navigate to the next image

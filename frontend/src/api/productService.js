@@ -27,7 +27,14 @@ const productService = {
    * @returns {Promise} Response from API
    */
   createProduct: async (productData) => {
-    const response = await apiClient.post('/products', productData);
+    // When sending FormData, let axios set the correct content type with boundary
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    };
+    
+    const response = await apiClient.post('/products', productData, config);
     return response.data;
   },
 
@@ -38,7 +45,14 @@ const productService = {
    * @returns {Promise} Response from API
    */
   updateProduct: async (id, productData) => {
-    const response = await apiClient.put(`/products/${id}`, productData);
+    // When sending FormData, let axios set the correct content type with boundary
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    };
+    
+    const response = await apiClient.put(`/products/${id}`, productData, config);
     return response.data;
   },
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiSave, FiUpload, FiX, FiPlus } from 'react-icons/fi';
+import { getFullImageUrl } from '../config';
 
 const ProductForm = ({ 
   initialData = {}, 
@@ -43,19 +44,44 @@ const ProductForm = ({
         image: initialData.image || '',
       });
       
-      setMainImagePreview(initialData.image || '');
+      // Initialize main image preview properly
+      if (initialData.image) {
+        // Use the utility function to get the full image URL
+        setMainImagePreview(getFullImageUrl(initialData.image));
+      } else {
+        setMainImagePreview('');
+      }
+      
+      // Reset file state when initializing
+      setMainImageFile(null);
+      setAdditionalImages([]);
+      setImagesToRemove([]);
       
       // Initialize additional images from the existing product
-      if (initialData.images && Array.isArray(initialData.images)) {
+      if (initialData.images && Array.isArray(initialData.images) && initialData.images.length > 0) {
+        console.log('Initializing additional images:', initialData.images);
+        // Make a deep copy to avoid references
         const initialPreviews = initialData.images.map(img => {
+          // Handle null or undefined values
+          if (!img) return null;
+          
           // Convert to full path if needed
-          if (img.startsWith('http') || img.startsWith('/')) {
-            return img;
+          if (typeof img === 'string') {
+            return getFullImageUrl(img);
           }
-          return `/uploads/products/${img}`;
-        });
+          
+          // If it's an object with a path property (adapt based on your API response)
+          if (img.path) {
+            return getFullImageUrl(img.path);
+          }
+          
+          return img;
+        }).filter(Boolean); // Remove any null values
         
+        console.log('Initialized image previews:', initialPreviews);
         setAdditionalImagePreviews(initialPreviews);
+      } else {
+        setAdditionalImagePreviews([]);
       }
       
       setIsInitialized(true);
@@ -107,18 +133,29 @@ const ProductForm = ({
         ...prev,
         image: error,
       }));
+      // Reset the file input to allow selecting the same file again
+      if (mainFileInputRef.current) {
+        mainFileInputRef.current.value = '';
+      }
       return;
     }
     
-    // Create preview URL
+    // Create preview URL and immediately set it
     const previewUrl = URL.createObjectURL(file);
     setMainImagePreview(previewUrl);
-    setMainImageFile(file);
-    setFormData(prev => ({ ...prev, image: file.name }));
+    setMainImageFile(file); // Store the actual File object
+    
+    // Don't set the formData.image to just the file name, as this isn't useful for the backend
+    // The actual file will be sent in the FormData
     
     // Clear any existing error
     if (errors.image) {
       setErrors(prev => ({ ...prev, image: '' }));
+    }
+    
+    // Reset the file input to allow selecting the same file again
+    if (mainFileInputRef.current) {
+      mainFileInputRef.current.value = '';
     }
   };
   
@@ -130,51 +167,81 @@ const ProductForm = ({
     // Validate each file
     const newFiles = [];
     const newPreviews = [];
+    let hasErrors = false;
     
-    for (const file of files) {
+    // Process all files, collecting valid ones while noting if any are invalid
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const error = validateImageFile(file);
+      
       if (error) {
+        // Set error but continue processing other files
         setErrors(prev => ({
           ...prev,
           additionalImages: error,
         }));
+        hasErrors = true;
+        // Don't use return here, continue to next file
         continue;
       }
       
-      // Create preview URL
+      // Create preview URL for valid file
       const previewUrl = URL.createObjectURL(file);
       newPreviews.push(previewUrl);
       newFiles.push(file);
     }
     
-    // Update state with new files
-    setAdditionalImages(prev => [...prev, ...newFiles]);
-    setAdditionalImagePreviews(prev => [...prev, ...newPreviews]);
+    // Add valid files to state even if some files had errors
+    if (newFiles.length > 0) {
+      // Update state with new files
+      setAdditionalImages(prev => [...prev, ...newFiles]);
+      setAdditionalImagePreviews(prev => [...prev, ...newPreviews]);
+      
+      // Only clear error if all files were valid
+      if (!hasErrors && errors.additionalImages) {
+        setErrors(prev => ({ ...prev, additionalImages: '' }));
+      }
+    }
     
-    // Clear any existing error
-    if (errors.additionalImages) {
-      setErrors(prev => ({ ...prev, additionalImages: '' }));
+    // Reset the file input value so the same files can be selected again if needed
+    if (additionalFileInputRef.current) {
+      additionalFileInputRef.current.value = '';
     }
   };
   
   // Trigger main file input click
-  const handleMainImageClick = () => {
-    mainFileInputRef.current.click();
+  const handleMainImageClick = (e) => {
+    // Prevent any potential event bubbling
+    if (e) e.preventDefault();
+    
+    if (mainFileInputRef.current) {
+      mainFileInputRef.current.click();
+    }
   };
   
   // Trigger additional file input click
-  const handleAdditionalImagesClick = () => {
-    additionalFileInputRef.current.click();
+  const handleAdditionalImagesClick = (e) => {
+    // Prevent any potential event bubbling
+    if (e) e.preventDefault();
+    
+    if (additionalFileInputRef.current) {
+      additionalFileInputRef.current.click();
+    }
   };
   
   // Remove main image
   const handleRemoveMainImage = () => {
+    // Release any object URLs to prevent memory leaks
+    if (mainImagePreview && mainImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(mainImagePreview);
+    }
+    
     setMainImagePreview('');
     setMainImageFile(null);
     setFormData(prev => ({ ...prev, image: '' }));
     
     // If we are editing a product and removing an existing image, add to removal list
-    if (initialData.image && !mainImageFile) {
+    if (initialData.id && initialData.image) {
       setImagesToRemove(prev => [...prev, initialData.image]);
     }
     
@@ -188,14 +255,23 @@ const ProductForm = ({
     // Get the image being removed
     const imageUrl = additionalImagePreviews[index];
     
-    // If it's an existing image (from initialData), add to removal list
-    if (initialData?.images && initialData.images[index]) {
+    // Release any object URLs to prevent memory leaks
+    if (imageUrl && imageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(imageUrl);
+    }
+    
+    // If it's a new file (part of additionalImages), remove it
+    if (index < additionalImages.length) {
+      setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+    }
+    
+    // If it's an existing image (from initialData) and we're editing, add to removal list
+    if (initialData.id && initialData.images && index < initialData.images.length) {
       setImagesToRemove(prev => [...prev, initialData.images[index]]);
     }
     
-    // Update state
+    // Update preview state
     setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
-    setAdditionalImages(prev => prev.filter((_, i) => i !== index));
   };
   
   // Validate form
@@ -235,21 +311,73 @@ const ProductForm = ({
     productData.append('price', parseFloat(formData.price));
     productData.append('stock_quantity', formData.stock_quantity ? parseInt(formData.stock_quantity) : 0);
     
-    // Append main image file if there's a new one
-    if (mainImageFile) {
-      productData.append('image', mainImageFile);
-    } else if (formData.image) {
-      // Keep existing main image
-      productData.append('image', formData.image);
+    // Add shop_id parameter to prevent 400 error "شناسه فروشگاه الزامی است" (Store ID is required)
+    if (initialData && initialData.shop_id) {
+      productData.append('shop_id', initialData.shop_id);
+    } else {
+      // If no shop_id in initialData, check if there's a default store ID in localStorage or context
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user && user.shop_id) {
+        productData.append('shop_id', user.shop_id);
+      } else if (localStorage.getItem('shop_id')) {
+        productData.append('shop_id', localStorage.getItem('shop_id'));
+      } else {
+        // As a last resort, use a default store ID (adjust as needed for your application)
+        productData.append('shop_id', '1'); // Default store ID
+      }
     }
     
-    // Append additional image files
-    additionalImages.forEach(file => {
-      productData.append('additionalImages', file);
-    });
+    // Append main image file if there's a new one
+    if (mainImageFile && mainImageFile instanceof File) {
+      productData.append('image', mainImageFile);
+    } else {
+      // If we have an existing image path, handle that
+      if (mainImagePreview && typeof mainImagePreview === 'string' && mainImagePreview.trim() !== '') {
+        productData.append('keepExistingImage', 'true');
+        
+        // Extract just the filename from the full URL
+        let existingImagePath = mainImagePreview;
+        
+        // Handle full URL case
+        if (mainImagePreview.includes('/uploads/products/')) {
+          const match = mainImagePreview.match(/\/uploads\/products\/([^?#]+)/);
+          existingImagePath = match ? match[1] : mainImagePreview;
+        }
+        
+        if (existingImagePath && existingImagePath.trim() !== '') {
+          productData.append('existingImagePath', existingImagePath);
+        }
+      }
+    }
+    
+    // Append additional image files (only actual File objects)
+    if (additionalImages && additionalImages.length > 0) {
+      let validFilesAdded = false;
+      additionalImages.forEach(file => {
+        if (file instanceof File) {
+          productData.append('additionalImages', file);
+          validFilesAdded = true;
+        }
+      });
+      
+      // If no valid files were added, ensure we don't send an empty array
+      if (!validFilesAdded) {
+        productData.delete('additionalImages');
+      }
+    }
+    
+    // For existing additional images that should be kept
+    if (initialData.images && Array.isArray(initialData.images)) {
+      // Only include images that haven't been marked for removal
+      const imagesToKeep = initialData.images.filter(img => !imagesToRemove.includes(img));
+      
+      if (imagesToKeep && imagesToKeep.length > 0) {
+        productData.append('keepExistingAdditionalImages', JSON.stringify(imagesToKeep));
+      }
+    }
     
     // Append list of images to remove
-    if (imagesToRemove.length > 0) {
+    if (imagesToRemove && imagesToRemove.length > 0) {
       productData.append('removeImages', JSON.stringify(imagesToRemove));
     }
     
@@ -257,18 +385,8 @@ const ProductForm = ({
     onSubmit(productData);
   };
   
-  // Utility function to get image URL for display
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    
-    // If it's already a full URL or starts with a slash, use it as is
-    if (path.startsWith('http') || path.startsWith('/')) {
-      return path;
-    }
-    
-    // Otherwise, create a URL using the backend's uploads path
-    return `/uploads/products/${path}`;
-  };
+  // For image previews, simply use the path directly - the backend provides full URLs now
+  const getImageUrl = (path) => path;
   
   return (
     <form onSubmit={handleSubmit}>
@@ -322,9 +440,14 @@ const ProductForm = ({
             {mainImagePreview ? (
               <div className="relative">
                 <img 
-                  src={mainImagePreview.startsWith('http') || mainImagePreview.startsWith('/') ? mainImagePreview : getImageUrl(mainImagePreview)} 
-                  alt={formData.name || 'Product'} 
+                  src={mainImagePreview instanceof File ? URL.createObjectURL(mainImagePreview) : mainImagePreview}
+                  alt={formData.name || t('products.productImage')} 
                   className="max-h-48 max-w-full rounded-md"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    // Use data URI instead of external placeholder service to avoid network errors
+                    e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22400%22%20height%3D%22400%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20400%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%20%7B%20fill%3A%23999%3Bfont-weight%3Anormal%3Bfont-family%3AArial%2C%20Helvetica%2C%20sans-serif%3Bfont-size%3A20pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Crect%20width%3D%22400%22%20height%3D%22400%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20id%3D%22holder_text%22%20x%3D%22100%22%20y%3D%22220%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+                  }}
                 />
                 <button
                   type="button"
@@ -358,16 +481,16 @@ const ProductForm = ({
                     <span onClick={handleMainImageClick}>{t('products.uploadImage')}</span>
                     <input
                       id="main-file-upload"
-                      name="main-file-upload"
+                      name="image"
                       type="file"
                       className="sr-only"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/gif,image/jpg"
                       ref={mainFileInputRef}
                       onChange={handleMainImageChange}
                     />
                   </label>
                 </div>
-                <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                <p className="text-xs text-gray-500">{t('products.imageSizeLimit')}</p>
               </div>
             )}
           </div>
@@ -386,9 +509,14 @@ const ProductForm = ({
               {additionalImagePreviews.map((preview, index) => (
                 <div key={index} className="relative">
                   <img 
-                    src={preview.startsWith('http') || preview.startsWith('/') ? preview : getImageUrl(preview)} 
-                    alt={`Product ${index + 1}`}
+                    src={preview instanceof File ? URL.createObjectURL(preview) : preview}
+                    alt={`${t('products.productImage')} ${index + 1}`}
                     className="h-32 w-full object-cover rounded-md border border-gray-200"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      // Use data URI instead of external placeholder service to avoid network errors
+                      e.target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_text%20%7B%20fill%3A%23999%3Bfont-weight%3Anormal%3Bfont-family%3AArial%2C%20Helvetica%2C%20sans-serif%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23eee%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2220%22%20y%3D%2256.5%22%3ENo Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+                    }}
                   />
                   <button
                     type="button"
@@ -403,23 +531,24 @@ const ProductForm = ({
           )}
           
           {/* Add more images button */}
-          <div 
-            onClick={handleAdditionalImagesClick}
+          <label 
+            htmlFor="additional-images-upload" 
             className="mt-2 flex justify-center items-center px-6 py-4 border-2 border-gray-300 border-dashed rounded-md cursor-pointer hover:bg-gray-50"
           >
             <div className="text-center">
               <FiPlus className="mx-auto h-8 w-8 text-gray-400" />
               <p className="text-sm text-gray-600 mt-2">{t('products.addMoreImages')}</p>
             </div>
-            <input
-              type="file"
-              className="sr-only"
-              accept="image/*"
-              multiple
-              ref={additionalFileInputRef}
-              onChange={handleAdditionalImagesChange}
-            />
-          </div>
+          </label>
+          <input
+            id="additional-images-upload"
+            type="file"
+            className="sr-only"
+            accept="image/jpeg,image/png,image/gif,image/jpg"
+            multiple
+            ref={additionalFileInputRef}
+            onChange={handleAdditionalImagesChange}
+          />
           {errors.additionalImages && <p className="mt-1 text-sm text-red-600">{errors.additionalImages}</p>}
         </div>
         
