@@ -25,13 +25,14 @@ const ensureShopAccess = (req, res, next) => {
       return next();
     }
     
-    // Convert to number for comparison
-    const shopIdNum = parseInt(requestedShopId, 10);
-    const userShopIdNum = parseInt(req.user.shop_id, 10);
-    
     // Check if user is trying to access a shop they don't belong to
-    if (isNaN(shopIdNum) || isNaN(userShopIdNum) || shopIdNum !== userShopIdNum) {
-      console.log('Shop access denied:', { shopIdNum, userShopIdNum, match: shopIdNum === userShopIdNum });
+    // Compare as strings, not numbers
+    if (requestedShopId !== req.user.shop_id) {
+      console.log('Shop access denied:', { 
+        requestedShopId, 
+        userShopId: req.user.shop_id, 
+        match: requestedShopId === req.user.shop_id 
+      });
       return res.status(403).json({
         status: 'error',
         message: 'شما مجوز دسترسی به این فروشگاه را ندارید'

@@ -8,14 +8,20 @@ import {
   FiX, 
   FiSave,
   FiShoppingCart,
-  FiImage
+  FiImage,
+  FiUser
 } from 'react-icons/fi';
 import { useProducts, useCreateTransaction } from '../api/queryHooks';
 import { getFullImageUrl } from '../config';
+import { useSelector } from 'react-redux';
+import CustomerSearch from '../components/CustomerSearch';
+import PointsRedemption from '../components/PointsRedemption';
+import CustomerForm from '../components/CustomerForm';
 
 const CreateTransaction = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { currentShop, loading: shopLoading } = useSelector((state) => state.shop);
   
   // State for transaction
   const [items, setItems] = useState([]);
@@ -26,10 +32,19 @@ const CreateTransaction = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   
+  // Customer and loyalty state
+  const [customer, setCustomer] = useState(null);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [pointsRedeemed, setPointsRedeemed] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  
   // Calculate total
   const totalAmount = items.reduce((total, item) => {
     return total + (item.price * item.quantity);
   }, 0);
+  
+  // Final amount after points redemption
+  const finalAmount = Math.max(0, totalAmount - discountAmount);
   
   // Query products for selection
   const { 
@@ -103,6 +118,31 @@ const CreateTransaction = () => {
     if (error) setError('');
   };
   
+  // Handle customer selection
+  const handleCustomerSelect = (selectedCustomer) => {
+    setCustomer(selectedCustomer);
+    setCustomerPhone(selectedCustomer.mobileNumber);
+  };
+  
+  // Handle new customer creation
+  const handleNewCustomer = (mobileNumber) => {
+    setCustomerPhone(mobileNumber);
+    setShowNewCustomerForm(true);
+  };
+  
+  // Handle customer form success
+  const handleCustomerFormSuccess = (newCustomer) => {
+    setCustomer(newCustomer);
+    setCustomerPhone(newCustomer.mobileNumber);
+    setShowNewCustomerForm(false);
+  };
+  
+  // Handle points redemption
+  const handlePointsRedeemed = (points, amount) => {
+    setPointsRedeemed(points);
+    setDiscountAmount(amount);
+  };
+  
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -119,8 +159,10 @@ const CreateTransaction = () => {
         product_id: item.product_id,
         quantity: item.quantity,
       })),
-      total_amount: totalAmount,
+      total_amount: finalAmount, // Use final amount after discount
+      customer_id: customer?.id || null,
       customer_phone: customerPhone,
+      points_to_redeem: pointsRedeemed,
       notes,
     };
     
@@ -172,6 +214,26 @@ const CreateTransaction = () => {
     return null;
   };
   
+  if (shopLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentShop) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+          <p className="text-yellow-700">{t('shop.noShopSelected')}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -451,20 +513,57 @@ const CreateTransaction = () => {
               {t('transactions.summary')}
             </h2>
             
-            {/* Customer information */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="customerPhone">
-                {t('transactions.customerPhone')}
-              </label>
-              <input
-                id="customerPhone"
-                type="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="09xxxxxxxxx"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+            {/* Customer search */}
+            {currentShop && (
+              <div className="mb-4">
+                <CustomerSearch 
+                  shopId={currentShop.id}
+                  onCustomerSelect={handleCustomerSelect}
+                  onNewCustomer={handleNewCustomer}
+                />
+              </div>
+            )}
+            
+            {/* New customer form modal */}
+            {showNewCustomerForm && currentShop && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto">
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {t('customer.addNewCustomer')}
+                    </h3>
+                    <button 
+                      onClick={() => setShowNewCustomerForm(false)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <FiX size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="p-4">
+                    <CustomerForm 
+                      shopId={currentShop.id}
+                      initialData={{ mobileNumber: customerPhone }}
+                      onSuccess={handleCustomerFormSuccess}
+                      onCancel={() => setShowNewCustomerForm(false)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Points redemption */}
+            {customer && items.length > 0 && totalAmount > 0 && (
+              <div className="mb-4">
+                <PointsRedemption
+                  shopId={currentShop?.id}
+                  customer={customer}
+                  totalAmount={totalAmount}
+                  onPointsRedeemed={handlePointsRedeemed}
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
             
             {/* Notes */}
             <div className="mb-6">
@@ -492,9 +591,22 @@ const CreateTransaction = () => {
                   {items.reduce((sum, item) => sum + item.quantity, 0)}
                 </span>
               </div>
-              <div className="flex justify-between py-2 text-lg font-bold">
+              <div className="flex justify-between py-2">
+                <span className="text-gray-600">{t('transactions.subtotal')}:</span>
+                <span className="text-gray-900 font-medium">{formatPrice(totalAmount)}</span>
+              </div>
+              
+              {/* Show discount if points are redeemed */}
+              {discountAmount > 0 && (
+                <div className="flex justify-between py-2 text-green-600">
+                  <span>{t('loyalty.pointsDiscount')}:</span>
+                  <span>- {formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between py-2 text-lg font-bold border-t border-gray-200 mt-2 pt-2">
                 <span className="text-gray-800">{t('transactions.total')}:</span>
-                <span className="text-indigo-600">{formatPrice(totalAmount)}</span>
+                <span className="text-indigo-600">{formatPrice(finalAmount)}</span>
               </div>
             </div>
             

@@ -14,6 +14,7 @@ import ProductDetail from './pages/ProductDetail'
 import Transactions from './pages/Transactions'
 import TransactionDetail from './pages/TransactionDetail'
 import CreateTransaction from './pages/CreateTransaction'
+import Customers from './pages/Customers'
 import NotFound from './pages/NotFound'
 
 // Import layout
@@ -109,6 +110,19 @@ function App() {
             isAuthenticated ? (
               <Layout requireAuth>
                 <TransactionDetail />
+              </Layout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } 
+        />
+        
+        <Route 
+          path="/customers" 
+          element={
+            isAuthenticated ? (
+              <Layout requireAuth>
+                <Customers />
               </Layout>
             ) : (
               <Navigate to="/login" replace />

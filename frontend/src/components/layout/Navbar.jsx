@@ -59,6 +59,12 @@ const Navbar = () => {
                 >
                   {t('transactions.title')}
                 </Link>
+                <Link
+                  to="/customers"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 border-transparent hover:border-white"
+                >
+                  {t('customer.customers')}
+                </Link>
               </div>
             )}
           </div>
@@ -142,6 +148,13 @@ const Navbar = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {t('transactions.title')}
+                </Link>
+                <Link
+                  to="/customers"
+                  className="block px-3 py-2 text-base font-medium hover:bg-primary-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {t('customer.customers')}
                 </Link>
               </>
             )}

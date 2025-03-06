@@ -5,6 +5,8 @@ const router = express.Router();
 const authRoutes = require('./authRoutes');
 const productRoutes = require('./productRoutes');
 const transactionRoutes = require('./transactionRoutes');
+const customerRoutes = require('./customerRoutes');
+const loyaltyRoutes = require('./loyaltyRoutes');
 
 /**
  * @route   GET /
@@ -31,5 +33,7 @@ router.get('/health', (req, res) => {
 router.use('/api/auth', authRoutes);
 router.use('/api/products', productRoutes);
 router.use('/api/transactions', transactionRoutes);
+router.use('/api/customers', customerRoutes);
+router.use('/api/loyalty', loyaltyRoutes);
 
 module.exports = router; 
