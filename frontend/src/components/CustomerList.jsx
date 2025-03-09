@@ -13,14 +13,31 @@ const CustomerList = ({ shopId, onEditCustomer, onViewLoyalty, refreshTrigger })
 
   // Fetch customers
   const fetchCustomers = async () => {
+    if (!shopId) {
+      toast.error(t('shop.noShopSelected'));
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     try {
+      console.log('Fetching customers for shop:', shopId);
       const response = await axios.get(`/api/customers/shops/${shopId}/customers`);
       setCustomers(response.data);
       setFilteredCustomers(response.data);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      toast.error(t('customer.fetchError'));
+      
+      // Show appropriate error message
+      if (error.response && error.response.status === 500) {
+        toast.error(t('customer.serverError'));
+      } else {
+        toast.error(t('customer.fetchError'));
+      }
+      
+      // Initialize with empty array rather than failing completely
+      setCustomers([]);
+      setFilteredCustomers([]);
     } finally {
       setLoading(false);
     }

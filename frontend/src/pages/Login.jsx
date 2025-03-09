@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import authService from '../api/authService';
-import { loginStart, loginSuccess, loginFailure, verificationNeeded } from '../store/authSlice';
+import { setLoading, setUser, setToken, setError, verificationNeeded } from '../store/authSlice';
+import { setCurrentShop } from '../store/shopSlice';
 import Layout from '../components/layout/Layout';
 
 const Login = () => {
@@ -47,7 +48,7 @@ const Login = () => {
   // Handle form submission
   const onSubmit = async (data) => {
     try {
-      dispatch(loginStart());
+      dispatch(setLoading(true));
       
       // Determine if the input is an email or mobile number
       const isEmail = data.identifier.includes('@');
@@ -59,7 +60,15 @@ const Login = () => {
       
       if (response.status === 'success' && response.token) {
         // Login successful
-        dispatch(loginSuccess(response.user));
+        dispatch(setUser(response.user));
+        dispatch(setToken(response.token));
+        
+        // If user has shop data, set it in shop state
+        if (response.user && response.user.shop) {
+          console.log('Setting shop data from login response:', response.user.shop);
+          dispatch(setCurrentShop(response.user.shop));
+        }
+        
         navigate('/dashboard');
       } else if (response.status === 'verification_needed') {
         // Verification needed
@@ -71,7 +80,7 @@ const Login = () => {
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || t('errors.serverError');
-      dispatch(loginFailure(errorMessage));
+      dispatch(setError(errorMessage));
     }
   };
 

@@ -6,15 +6,31 @@ exports.getCustomers = async (req, res) => {
   try {
     const { shopId } = req.params;
     
+    console.log('Getting customers for shop ID:', shopId);
+    
+    // Validate the shopId
+    if (!shopId) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Shop ID is required' 
+      });
+    }
+    
     const customers = await Customer.findAll({
       where: { shop_id: shopId, isActive: true },
       order: [['createdAt', 'DESC']]
     });
     
+    console.log(`Found ${customers.length} customers for shop ${shopId}`);
+    
     return res.status(200).json(customers);
   } catch (error) {
     console.error('Error fetching customers:', error);
-    return res.status(500).json({ error: 'Failed to fetch customers' });
+    return res.status(500).json({ 
+      status: 'error',
+      message: 'Failed to fetch customers',
+      details: error.message
+    });
   }
 };
 
@@ -22,6 +38,16 @@ exports.getCustomers = async (req, res) => {
 exports.getCustomerByMobile = async (req, res) => {
   try {
     const { shopId, mobileNumber } = req.params;
+    
+    console.log('Looking up customer:', { shopId, mobileNumber });
+    
+    // Validate inputs
+    if (!shopId || !mobileNumber) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Shop ID and mobile number are required' 
+      });
+    }
     
     // Normalize mobile number (remove any spaces, dashes, etc.)
     const normalizedMobile = mobileNumber.replace(/\s+/g, '').replace(/-/g, '');
@@ -47,13 +73,20 @@ exports.getCustomerByMobile = async (req, res) => {
     });
     
     if (!customer) {
-      return res.status(404).json({ error: 'Customer not found' });
+      return res.status(404).json({ 
+        status: 'error',
+        message: 'Customer not found' 
+      });
     }
     
     return res.status(200).json(customer);
   } catch (error) {
     console.error('Error fetching customer by mobile:', error);
-    return res.status(500).json({ error: 'Failed to fetch customer' });
+    return res.status(500).json({ 
+      status: 'error',
+      message: 'Failed to fetch customer',
+      details: error.message
+    });
   }
 };
 
@@ -70,49 +103,96 @@ exports.createCustomer = async (req, res) => {
       notes
     } = req.body;
     
+    console.log('Creating customer:', { shopId, mobileNumber, firstName, lastName });
+    
+    // Validate required fields
+    if (!mobileNumber || !firstName) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Mobile number and first name are required'
+      });
+    }
+    
+    // Normalize mobile number
+    const normalizedMobile = mobileNumber.replace(/\s+/g, '').replace(/-/g, '');
+    
     // Check if shop exists
-    const shop = await Shop.findByPk(shopId);
-    if (!shop) {
-      return res.status(404).json({ error: 'Shop not found' });
+    try {
+      const shop = await Shop.findByPk(shopId);
+      if (!shop) {
+        return res.status(404).json({ 
+          status: 'error',
+          message: 'Shop not found' 
+        });
+      }
+    } catch (shopError) {
+      console.error('Error finding shop:', shopError);
+      return res.status(500).json({ 
+        status: 'error',
+        message: 'Error validating shop',
+        details: shopError.message
+      });
     }
     
     // Check if customer with this mobile already exists
-    const existingCustomer = await Customer.findOne({
-      where: { 
-        shop_id: shopId, 
-        mobileNumber
+    try {
+      const existingCustomer = await Customer.findOne({
+        where: { 
+          shop_id: shopId, 
+          mobileNumber: normalizedMobile
+        }
+      });
+      
+      if (existingCustomer) {
+        return res.status(400).json({ 
+          status: 'error', 
+          message: 'Customer with this mobile number already exists',
+          customer: existingCustomer
+        });
       }
-    });
-    
-    if (existingCustomer) {
-      return res.status(400).json({ 
-        error: 'Customer with this mobile number already exists',
-        customer: existingCustomer
+    } catch (lookupError) {
+      console.error('Error checking for existing customer:', lookupError);
+      return res.status(500).json({ 
+        status: 'error',
+        message: 'Error checking for existing customer',
+        details: lookupError.message
       });
     }
     
     // Create new customer
-    const newCustomer = await Customer.create({
-      firstName,
-      lastName,
-      mobileNumber,
-      email,
-      birthDate,
-      notes,
-      shop_id: shopId,
-      // Default values for new customers
-      totalPoints: 0,
-      availablePoints: 0,
-      tier: 'bronze',
-      totalSpent: 0
-    });
-    
-    // Here we could add initial welcome points in real system
-    
-    return res.status(201).json(newCustomer);
+    try {
+      const newCustomer = await Customer.create({
+        firstName,
+        lastName,
+        mobileNumber: normalizedMobile,
+        email,
+        birthDate,
+        notes,
+        shop_id: shopId,
+        availablePoints: 0,
+        lifetimePoints: 0,
+        tier: 'standard',
+        isActive: true
+      });
+      
+      console.log('Customer created successfully:', newCustomer.id);
+      
+      return res.status(201).json(newCustomer);
+    } catch (createError) {
+      console.error('Error creating customer:', createError);
+      return res.status(500).json({ 
+        status: 'error',
+        message: 'Failed to create customer',
+        details: createError.message
+      });
+    }
   } catch (error) {
-    console.error('Error creating customer:', error);
-    return res.status(500).json({ error: 'Failed to create customer' });
+    console.error('Customer creation error:', error);
+    return res.status(500).json({ 
+      status: 'error',
+      message: 'An unexpected error occurred',
+      details: error.message
+    });
   }
 };
 

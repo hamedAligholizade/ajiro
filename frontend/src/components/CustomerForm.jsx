@@ -27,6 +27,7 @@ const CustomerForm = ({ shopId, initialData, onSuccess, onCancel }) => {
   const onSubmit = async (data) => {
     try {
       let response;
+      console.log('Submitting customer data for shop:', shopId, data);
       
       if (isEditing) {
         // Update existing customer
@@ -50,8 +51,17 @@ const CustomerForm = ({ shopId, initialData, onSuccess, onCancel }) => {
       }
     } catch (error) {
       console.error('Error saving customer:', error);
-      if (error.response && error.response.data && error.response.data.error) {
-        toast.error(error.response.data.error);
+      
+      if (error.response) {
+        if (error.response.status === 500) {
+          toast.error(t('customer.serverError'));
+        } else if (error.response.data && error.response.data.message) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error(t('customer.saveError'));
+        }
+      } else if (error.request) {
+        toast.error(t('common.connectionError'));
       } else {
         toast.error(t('common.errorOccurred'));
       }

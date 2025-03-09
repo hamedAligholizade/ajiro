@@ -18,9 +18,13 @@ const authService = {
    */
   signin: async (credentials) => {
     const response = await apiClient.post('/auth/signin', credentials);
+    console.log('Auth response:', response.data);
+    
     if (response.data.token) {
+      // Save token and user data to localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      console.log('User with shop data saved to localStorage:', response.data.user);
     }
     return response.data;
   },
@@ -32,6 +36,12 @@ const authService = {
    */
   verify: async (verificationData) => {
     const response = await apiClient.post('/auth/verify', verificationData);
+    // Save user and token if verification successful
+    if (response.data.token && response.data.user) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      console.log('User with shop data saved to localStorage after verification:', response.data.user);
+    }
     return response.data;
   },
 

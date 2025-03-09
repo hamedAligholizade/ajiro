@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { FaPlus, FaCog } from 'react-icons/fa';
+import { setCurrentShop } from '../store/shopSlice';
 import CustomerList from '../components/CustomerList';
 import CustomerForm from '../components/CustomerForm';
 import LoyaltyDetails from '../components/LoyaltyDetails';
@@ -10,7 +11,9 @@ import Modal from '../components/common/Modal';
 
 const Customers = () => {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
   const { currentShop, loading: shopLoading } = useSelector((state) => state.shop);
+  const { user } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState('list');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
@@ -20,6 +23,14 @@ const Customers = () => {
   useEffect(() => {
     document.title = `${t('customer.customers')} | Ajiro`;
   }, [t]);
+  
+  // Check if user has shop data but currentShop is missing
+  useEffect(() => {
+    if (!currentShop && user && user.shop) {
+      console.log('Found shop in user state but not in shop state, updating shop state');
+      dispatch(setCurrentShop(user.shop));
+    }
+  }, [currentShop, dispatch, user]);
 
   const handleEditCustomer = (customer) => {
     setSelectedCustomer(customer);
@@ -68,8 +79,11 @@ const Customers = () => {
   if (shopLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="bg-white shadow rounded-md p-6">
+          <div className="flex justify-center items-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+            <p className="ml-3 text-gray-600">{t('shop.loading')}</p>
+          </div>
         </div>
       </div>
     );
@@ -80,6 +94,7 @@ const Customers = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
           <p className="text-yellow-700">{t('shop.noShopSelected')}</p>
+          <p className="text-yellow-700 mt-2">{t('shop.pleaseContact')}</p>
         </div>
       </div>
     );

@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEffect } from 'react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { ToastContainer } from 'react-toastify'
+import { checkAuth } from './store/authSlice'
+import { fetchShopData } from './store/shopSlice'
 
 // Import pages
 import Login from './pages/Login'
@@ -22,13 +24,25 @@ import Layout from './components/layout/Layout'
 
 function App() {
   const { i18n } = useTranslation()
-  const { isAuthenticated } = useSelector(state => state.auth)
+  const dispatch = useDispatch()
+  const { isAuthenticated, user } = useSelector(state => state.auth)
+  
+  // Check authentication when app loads
+  useEffect(() => {
+    console.log('App mounted - checking auth status')
+    dispatch(checkAuth())
+  }, [dispatch])
   
   // Set the document direction based on the current language
   useEffect(() => {
     document.documentElement.dir = i18n.dir()
     document.documentElement.lang = i18n.language
   }, [i18n, i18n.language])
+  
+  // Log current state for debugging
+  useEffect(() => {
+    console.log('Auth state changed:', { isAuthenticated, user })
+  }, [isAuthenticated, user])
   
   return (
     <>

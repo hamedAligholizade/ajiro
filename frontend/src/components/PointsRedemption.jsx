@@ -18,6 +18,11 @@ const PointsRedemption = ({
 
   // Calculate preview when points change
   const calculateRedemptionPreview = async () => {
+    if (!shopId) {
+      toast.error(t('shop.noShopSelected'));
+      return;
+    }
+  
     const points = parseInt(pointsToRedeem);
     
     if (!points || isNaN(points) || points <= 0 || points > customer.availablePoints) {
@@ -27,6 +32,7 @@ const PointsRedemption = ({
     
     setLoading(true);
     try {
+      console.log('Calculating points redemption for shop:', shopId);
       const response = await axios.get(`/api/loyalty/shops/${shopId}/loyalty/config`);
       const config = response.data;
       
@@ -38,20 +44,22 @@ const PointsRedemption = ({
       
       const amountInTomans = points * config.redemptionValue;
       
-      // Ensure discount doesn't exceed total amount
-      const maxDiscount = Math.min(amountInTomans, totalAmount);
-      const actualPoints = Math.floor(maxDiscount / config.redemptionValue);
-      const actualDiscount = actualPoints * config.redemptionValue;
-      
+      // Update preview
       setRedemptionPreview({
-        points: actualPoints,
-        amountInTomans: actualDiscount,
-        newTotal: totalAmount - actualDiscount
+        points,
+        value: amountInTomans
       });
-      
     } catch (error) {
       console.error('Error calculating redemption:', error);
-      toast.error(t('loyalty.calculationError'));
+      
+      // Handle server errors gracefully
+      if (error.response && error.response.status === 500) {
+        toast.error(t('loyalty.serverError'));
+      } else {
+        toast.error(t('loyalty.calculationError'));
+      }
+      
+      // Reset preview
       setRedemptionPreview(null);
     } finally {
       setLoading(false);
@@ -62,11 +70,11 @@ const PointsRedemption = ({
   const handleApplyRedemption = () => {
     if (!redemptionPreview) return;
     
-    onPointsRedeemed(redemptionPreview.points, redemptionPreview.amountInTomans);
+    onPointsRedeemed(redemptionPreview.points, redemptionPreview.value);
     toast.success(
       t('loyalty.pointsApplied', { 
         points: redemptionPreview.points, 
-        amount: new Intl.NumberFormat('fa-IR').format(redemptionPreview.amountInTomans) 
+        amount: new Intl.NumberFormat('fa-IR').format(redemptionPreview.value) 
       })
     );
     
@@ -101,8 +109,7 @@ const PointsRedemption = ({
       
       setRedemptionPreview({
         points: maxPoints,
-        amountInTomans: amountInTomans,
-        newTotal: totalAmount - amountInTomans
+        value: amountInTomans
       });
       
     } catch (error) {
@@ -174,13 +181,13 @@ const PointsRedemption = ({
             <div>
               <div className="text-xs text-gray-500">{t('loyalty.discountAmount')}:</div>
               <div className="font-medium text-green-600">
-                {new Intl.NumberFormat('fa-IR').format(redemptionPreview.amountInTomans)} {t('common.currency')}
+                {new Intl.NumberFormat('fa-IR').format(redemptionPreview.value)} {t('common.currency')}
               </div>
             </div>
             <div>
               <div className="text-xs text-gray-500">{t('loyalty.newTotal')}:</div>
               <div className="font-medium">
-                {new Intl.NumberFormat('fa-IR').format(redemptionPreview.newTotal)} {t('common.currency')}
+                {new Intl.NumberFormat('fa-IR').format(totalAmount - redemptionPreview.value)} {t('common.currency')}
               </div>
             </div>
           </div>

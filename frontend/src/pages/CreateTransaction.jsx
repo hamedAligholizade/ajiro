@@ -13,7 +13,8 @@ import {
 } from 'react-icons/fi';
 import { useProducts, useCreateTransaction } from '../api/queryHooks';
 import { getFullImageUrl } from '../config';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { setCurrentShop } from '../store/shopSlice';
 import CustomerSearch from '../components/CustomerSearch';
 import PointsRedemption from '../components/PointsRedemption';
 import CustomerForm from '../components/CustomerForm';
@@ -21,7 +22,18 @@ import CustomerForm from '../components/CustomerForm';
 const CreateTransaction = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { currentShop, loading: shopLoading } = useSelector((state) => state.shop);
+  const { user } = useSelector((state) => state.auth);
+  console.log('CreateTransaction - Shop state:', { currentShop, shopLoading });
+  
+  // Check if user has shop data but currentShop is missing
+  useEffect(() => {
+    if (!currentShop && user && user.shop) {
+      console.log('Found shop in user state but not in shop state, updating shop state');
+      dispatch(setCurrentShop(user.shop));
+    }
+  }, [currentShop, dispatch, user]);
   
   // State for transaction
   const [items, setItems] = useState([]);
@@ -118,23 +130,29 @@ const CreateTransaction = () => {
     if (error) setError('');
   };
   
-  // Handle customer selection
+  // Handle customer selection - no API calls needed
   const handleCustomerSelect = (selectedCustomer) => {
+    console.log('Customer selected:', selectedCustomer);
     setCustomer(selectedCustomer);
-    setCustomerPhone(selectedCustomer.mobileNumber);
+    setCustomerPhone(selectedCustomer?.mobileNumber || '');
+    // Reset points redemption when customer changes
+    setPointsRedeemed(0);
+    setDiscountAmount(0);
   };
   
-  // Handle new customer creation
+  // Handle showing new customer form - no API calls
   const handleNewCustomer = (mobileNumber) => {
+    console.log('Creating new customer with mobile:', mobileNumber);
     setCustomerPhone(mobileNumber);
     setShowNewCustomerForm(true);
   };
   
-  // Handle customer form success
+  // Handle customer form submission success
   const handleCustomerFormSuccess = (newCustomer) => {
+    console.log('New customer created:', newCustomer);
+    setShowNewCustomerForm(false);
     setCustomer(newCustomer);
     setCustomerPhone(newCustomer.mobileNumber);
-    setShowNewCustomerForm(false);
   };
   
   // Handle points redemption
@@ -164,6 +182,7 @@ const CreateTransaction = () => {
       customer_phone: customerPhone,
       points_to_redeem: pointsRedeemed,
       notes,
+      shop_id: currentShop.id, // Make sure shop_id is included
     };
     
     try {
@@ -217,18 +236,22 @@ const CreateTransaction = () => {
   if (shopLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="bg-white shadow rounded-md p-6">
+          <div className="flex justify-center items-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+            <p className="ml-3 text-gray-600">{t('shop.loading')}</p>
+          </div>
         </div>
       </div>
     );
   }
-
+  
   if (!currentShop) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
           <p className="text-yellow-700">{t('shop.noShopSelected')}</p>
+          <p className="text-yellow-700 mt-2">{t('shop.pleaseContact')}</p>
         </div>
       </div>
     );

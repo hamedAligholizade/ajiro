@@ -1,14 +1,13 @@
 import { createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { fetchShopData } from './shopSlice';
-
+import { fetchShopData, setCurrentShop } from './shopSlice';
+import authService from '../api/authService';
 // Get user from localStorage if available
-const storedUser = localStorage.getItem('user');
-const user = storedUser ? JSON.parse(storedUser) : null;
+const user = authService.getCurrentUser();
 
 const initialState = {
   user: user,
-  token: localStorage.getItem('token'),
+  token: null,
   isAuthenticated: !!user,
   loading: false,
   error: null,
@@ -24,16 +23,14 @@ const authSlice = createSlice({
       state.user = action.payload;
       state.isAuthenticated = true;
       state.error = null;
-      // Store user in localStorage
-      localStorage.setItem('user', JSON.stringify(action.payload));
+
+      // Log if shop data is present in the user object
+      if (action.payload && action.payload.shop) {
+        console.log('Shop data found in user object during setUser action');
+      }
     },
     setToken: (state, action) => {
       state.token = action.payload;
-      if (action.payload) {
-        localStorage.setItem('token', action.payload);
-      } else {
-        localStorage.removeItem('token');
-      }
     },
     setLoading: (state, action) => {
       state.loading = action.payload;
@@ -47,26 +44,22 @@ const authSlice = createSlice({
       state.token = null;
       state.isAuthenticated = false;
       state.error = null;
-      // Clear localStorage
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
+      authService.logout();
     },
     verificationNeeded: (state, action) => {
-      state.loading = false;
+      state.isLoading = false;
       state.isVerificationNeeded = true;
       state.verificationData = action.payload;
     },
     verificationSuccess: (state, action) => {
-      state.loading = false;
+      state.isLoading = false;
       state.isAuthenticated = true;
       state.user = action.payload;
       state.isVerificationNeeded = false;
       state.verificationData = null;
-      // Store user in localStorage
-      localStorage.setItem('user', JSON.stringify(action.payload));
     },
     verificationFailure: (state, action) => {
-      state.loading = false;
+      state.isLoading = false;
       state.error = action.payload;
     },
     clearError: (state) => {
@@ -75,17 +68,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { 
-  setUser, 
-  setToken, 
-  setLoading, 
-  setError, 
-  logout, 
-  verificationNeeded, 
-  verificationSuccess, 
-  verificationFailure, 
-  clearError 
-} = authSlice.actions;
+export const { setUser, setToken, setLoading, setError, logout, verificationNeeded, verificationSuccess, verificationFailure, clearError } = authSlice.actions;
 
 // Thunk for handling login
 export const login = (credentials) => async (dispatch) => {
@@ -98,12 +81,18 @@ export const login = (credentials) => async (dispatch) => {
     // Set token in axios defaults
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
+    // Store token in localStorage
+    localStorage.setItem('token', token);
+    
     // Update auth state
     dispatch(setToken(token));
     dispatch(setUser(user));
     
-    // Fetch shop data
-    dispatch(fetchShopData());
+    // If user has shop data, update shop state directly
+    if (user && user.shop) {
+      console.log('Setting shop state from login response:', user.shop);
+      dispatch(setCurrentShop(user.shop));
+    }
     
     return true;
   } catch (error) {
@@ -117,6 +106,9 @@ export const login = (credentials) => async (dispatch) => {
 
 // Thunk for handling logout
 export const logoutUser = () => (dispatch) => {
+  // Remove token from localStorage
+  localStorage.removeItem('token');
+  
   // Remove token from axios defaults
   delete axios.defaults.headers.common['Authorization'];
   
@@ -136,15 +128,39 @@ export const checkAuth = () => async (dispatch) => {
     // Set token in axios defaults
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
-    // Verify token and get user data
-    const response = await axios.get('/api/auth/me');
-    
-    // Update auth state
-    dispatch(setToken(token));
-    dispatch(setUser(response.data));
-    
-    // Fetch shop data
-    dispatch(fetchShopData());
+    // Try to verify token and get user data from server
+    try {
+      const response = await axios.get('/api/auth/me');
+      
+      // Update auth state
+      dispatch(setToken(token));
+      dispatch(setUser(response.data));
+      
+      // If user has shop data, update shop state directly
+      if (response.data && response.data.shop) {
+        console.log('Setting shop state from auth check response:', response.data.shop);
+        dispatch(setCurrentShop(response.data.shop));
+      }
+    } catch (apiError) {
+      console.error('Error fetching updated user data:', apiError);
+      console.log('Using cached user data from localStorage as fallback');
+      
+      // Fall back to using cached user data from localStorage
+      const userData = authService.getCurrentUser();
+      if (userData) {
+        dispatch(setToken(token));
+        dispatch(setUser(userData));
+        
+        // If user has shop data, update shop state directly
+        if (userData.shop) {
+          console.log('Setting shop state from localStorage fallback:', userData.shop);
+          dispatch(setCurrentShop(userData.shop));
+        }
+      } else {
+        // If we can't get user data, we need to clear the auth state
+        throw new Error('No cached user data available');
+      }
+    }
     
     return true;
   } catch (error) {

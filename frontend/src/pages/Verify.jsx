@@ -5,11 +5,12 @@ import { useForm } from 'react-hook-form';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { 
-  loginStart, 
-  loginFailure, 
+  setLoading, 
+  setError, 
   verificationSuccess, 
   verificationFailure 
 } from '../store/authSlice';
+import { setCurrentShop } from '../store/shopSlice';
 import authService from '../api/authService';
 import Layout from '../components/layout/Layout';
 
@@ -57,7 +58,7 @@ const Verify = () => {
   // Handle form submission
   const onSubmit = async (data) => {
     try {
-      dispatch(loginStart());
+      dispatch(setLoading(true));
       
       const response = await authService.verify({
         userId: verificationData.userId,
@@ -67,6 +68,13 @@ const Verify = () => {
       
       if (response.status === 'success' && response.token) {
         dispatch(verificationSuccess(response.user));
+        
+        // If user has shop data, set it in shop state
+        if (response.user && response.user.shop) {
+          console.log('Setting shop data from verification response:', response.user.shop);
+          dispatch(setCurrentShop(response.user.shop));
+        }
+        
         toast.success(t('verify.success'));
         navigate('/dashboard');
       } else {

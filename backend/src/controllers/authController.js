@@ -153,6 +153,9 @@ const signin = async (req, res) => {
         });
       }
       
+      // Get shop data
+      const shop = await Shop.findByPk(user.shop_id);
+      
       // Generate token
       const token = generateToken(user);
       
@@ -164,6 +167,12 @@ const signin = async (req, res) => {
           id: user.id,
           email: user.email,
           shop_id: user.shop_id,
+          shop: shop ? {
+            id: shop.id,
+            name: shop.name,
+            address: shop.address,
+            created_at: shop.created_at
+          } : null
         },
       });
     }
@@ -259,6 +268,9 @@ const verify = async (req, res) => {
       await user.update({ is_verified: true });
     }
     
+    // Get shop data
+    const shop = await Shop.findByPk(user.shop_id);
+    
     // Generate token
     const token = generateToken(user);
     
@@ -270,6 +282,12 @@ const verify = async (req, res) => {
         id: user.id,
         mobile: user.mobile,
         shop_id: user.shop_id,
+        shop: shop ? {
+          id: shop.id,
+          name: shop.name,
+          address: shop.address,
+          created_at: shop.created_at
+        } : null
       },
     });
   } catch (error) {
@@ -334,9 +352,65 @@ const resendCode = async (req, res) => {
   }
 };
 
+/**
+ * Get the currently authenticated user
+ * @route GET /api/auth/me
+ */
+const getCurrentUser = async (req, res) => {
+  try {
+    // User is already attached to req by the authenticateJWT middleware
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'کاربر احراز هویت نشده است'
+      });
+    }
+    
+    // Get the user with shop data
+    const user = await User.findByPk(req.user.id, {
+      include: [
+        {
+          model: Shop,
+          as: 'shop'
+        }
+      ]
+    });
+    
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'کاربر یافت نشد'
+      });
+    }
+    
+    // Return user data without sensitive information
+    return res.status(200).json({
+      id: user.id,
+      email: user.email,
+      mobile: user.mobile,
+      shop_id: user.shop_id,
+      shop: user.shop ? {
+        id: user.shop.id,
+        name: user.shop.name,
+        address: user.shop.address,
+        created_at: user.shop.created_at
+      } : null,
+      is_verified: user.is_verified,
+      created_at: user.created_at
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'خطا در دریافت اطلاعات کاربر'
+    });
+  }
+};
+
 module.exports = {
   signup,
   signin,
   verify,
-  resendCode
+  resendCode,
+  getCurrentUser
 }; 

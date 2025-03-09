@@ -11,6 +11,11 @@ const CustomerSearch = ({ shopId, onCustomerSelect, onNewCustomer }) => {
   const [customer, setCustomer] = useState(null);
 
   const handleSearch = async () => {
+    if (!shopId) {
+      toast.error(t('shop.noShopSelected'));
+      return;
+    }
+    
     if (!mobileNumber || mobileNumber.length < 10) {
       toast.error(t('customer.validMobileRequired'));
       return;
@@ -18,17 +23,27 @@ const CustomerSearch = ({ shopId, onCustomerSelect, onNewCustomer }) => {
 
     setIsLoading(true);
     try {
+      console.log('Searching for customer with mobile:', mobileNumber, 'in shop:', shopId);
       const response = await axios.get(`/api/customers/shops/${shopId}/customers/mobile/${mobileNumber}`);
       setCustomer(response.data);
       onCustomerSelect(response.data);
       toast.success(t('customer.customerFound'));
     } catch (error) {
       console.error('Error finding customer:', error);
-      if (error.response && error.response.status === 404) {
-        toast.info(t('customer.customerNotFound'));
-        setCustomer(null);
+      if (error.response) {
+        if (error.response.status === 404) {
+          toast.info(t('customer.customerNotFound'));
+          setCustomer(null);
+        } else if (error.response.status === 500) {
+          toast.error(t('customer.serverError'));
+          setCustomer(null);
+        } else {
+          toast.error(t('common.errorOccurred'));
+          setCustomer(null);
+        }
       } else {
-        toast.error(t('common.errorOccurred'));
+        toast.error(t('common.connectionError'));
+        setCustomer(null);
       }
     } finally {
       setIsLoading(false);
@@ -36,6 +51,10 @@ const CustomerSearch = ({ shopId, onCustomerSelect, onNewCustomer }) => {
   };
 
   const handleCreateNew = () => {
+    if (!shopId) {
+      toast.error(t('shop.noShopSelected'));
+      return;
+    }
     onNewCustomer(mobileNumber);
   };
 

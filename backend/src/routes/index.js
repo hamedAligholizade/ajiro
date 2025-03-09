@@ -7,6 +7,7 @@ const productRoutes = require('./productRoutes');
 const transactionRoutes = require('./transactionRoutes');
 const customerRoutes = require('./customerRoutes');
 const loyaltyRoutes = require('./loyaltyRoutes');
+const shopRoutes = require('./shopRoutes');
 
 /**
  * @route   GET /
@@ -35,5 +36,6 @@ router.use('/api/products', productRoutes);
 router.use('/api/transactions', transactionRoutes);
 router.use('/api/customers', customerRoutes);
 router.use('/api/loyalty', loyaltyRoutes);
+router.use('/api/shops', shopRoutes);
 
 module.exports = router; 
