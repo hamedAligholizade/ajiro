@@ -8,6 +8,7 @@ const transactionRoutes = require('./transactionRoutes');
 const customerRoutes = require('./customerRoutes');
 const loyaltyRoutes = require('./loyaltyRoutes');
 const shopRoutes = require('./shopRoutes');
+const statsRoutes = require('./statsRoutes');
 
 /**
  * @route   GET /
@@ -37,5 +38,6 @@ router.use('/api/transactions', transactionRoutes);
 router.use('/api/customers', customerRoutes);
 router.use('/api/loyalty', loyaltyRoutes);
 router.use('/api/shops', shopRoutes);
+router.use('/api/stats', statsRoutes);
 
 module.exports = router; 
