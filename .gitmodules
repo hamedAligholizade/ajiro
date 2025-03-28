@@ -1,0 +1,6 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/hamedAligholizade/ajiro-backend-cursor.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/hamedAligholizade/ajiro-front-tempo.git
