@@ -1,0 +1,32 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# SSL certificates
+nginx/ssl/*.key
+nginx/ssl/*.crt
+nginx/ssl/*.pem
+
+# Database backups
+postgres/backups/*
+!postgres/backups/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Frontend and backend repos if not using git submodules
+# Uncomment if you prefer to clone and manage these separately
+# /frontend/
+# /backend/ 
