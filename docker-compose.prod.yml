@@ -13,9 +13,6 @@ services:
       - VITE_API_URL=/api
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro
-    # Remove the depends_on for nginx since it's not needed
-    # depends_on:
-    #   - nginx
 
   api:
     build:
