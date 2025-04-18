@@ -11,11 +11,9 @@ services:
       - VITE_API_URL=/api
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro
-    # Remove port mapping since nginx will handle all traffic
-    # ports:
-    #   - "80:80"
-    depends_on:
-      - nginx
+    # Remove the depends_on for nginx since it's not needed
+    # depends_on:
+    #   - nginx
 
   api:
     build:
